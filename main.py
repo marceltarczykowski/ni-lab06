@@ -1,5 +1,6 @@
 from src.manager import Manager
 from src.models import Parameters
+import sys
 
 
 def print_section_header(title: str):
@@ -63,11 +64,48 @@ def display_tenants(manager):
                 print(f"      • {format_currency(transfer.amount_pln):>15}  Date: {transfer.date}  Period: {month_year}")
 
 
+def display_settlement(manager, apartment_key: str, year: int, month: int):
+    """Display settlement for specific apartment and period"""
+    print_section_header(f"SETTLEMENT: {apartment_key} - {month}/{year}")
+    
+    apartment_settlement = manager.get_settlement(apartment_key, year, month)
+    if not apartment_settlement:
+        print(f"\n❌ No settlement found for {apartment_key} in {month}/{year}")
+        return
+    
+    print(f"\n Apartment: {apartment_key}")
+    print(f"   Period: {month}/{year}")
+    print(f"   Total Cost: {format_currency(apartment_settlement.total_due_pln)}")
+    
+    tenant_settlements = manager.create_tenants_settlements(apartment_settlement)
+    if tenant_settlements:
+        print_subsection_header("Tenant Settlements")
+        for ts in tenant_settlements:
+            print(f"      • {ts.tenant:<25} {format_currency(ts.total_due_pln):>15}")
+        
+        total = sum(ts.total_due_pln for ts in tenant_settlements)
+        print(f"\n   Total from tenants: {format_currency(total)}")
+    
+    debtors = manager.get_debtors(apartment_key, month, year)
+    if debtors:
+        print_subsection_header("  Debtors")
+        for debtor in debtors:
+            print(f"      • {debtor}")
+    else:
+        print_subsection_header(" No debtors - all payments received")
+
+
 if __name__ == '__main__':
     parameters = Parameters()
     manager = Manager(parameters)
 
-    display_apartments(manager)
-    display_tenants(manager)
+    if len(sys.argv) == 4:
+        apartment_key = sys.argv[1]
+        year = int(sys.argv[2])
+        month = int(sys.argv[3])
+        display_settlement(manager, apartment_key, year, month)
+    else:
+        display_apartments(manager)
+        display_tenants(manager)
     
     print(f"\n{'=' * 70}\n")
